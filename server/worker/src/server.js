@@ -1,21 +1,30 @@
 require("dotenv").config();
 
 const express = require("express");
+const rateLimit = require("express-rate-limit");
+const helmet = require("helmet");
+
 const { checkWebsite } = require("./checker");
-const { validateUrl } = require("./url-validator");
 
 const app = express();
 
-app.use(express.json());
+const PORT = process.env.PORT || 3001;
+const REGION = process.env.REGION || "unknown";
+const WORKER_SECRET = process.env.WORKER_SECRET;
 
-app.use(express.json({ limit: "10kb" }));
+if (!WORKER_SECRET) {
+  throw new Error("WORKER_SECRET is not configured");
+}
 
 app.disable("x-powered-by");
 
-const PORT = process.env.PORT || 3001;
-const REGION = process.env.REGION || "unknown";
+app.use(helmet());
 
-const rateLimit = require("express-rate-limit");
+app.use(
+  express.json({
+    limit: "10kb",
+  })
+);
 
 const checkLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -23,12 +32,6 @@ const checkLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-
-const WORKER_SECRET = process.env.WORKER_SECRET;
-
-if (!WORKER_SECRET) {
-  throw new Error("WORKER_SECRET is not configured");
-}
 
 function authenticateWorker(req, res, next) {
   const providedSecret = req.get("X-Worker-Key");
@@ -42,31 +45,34 @@ function authenticateWorker(req, res, next) {
   next();
 }
 
-app.post("/check", authenticateWorker, checkLimiter, async (req, res) => {
-  const { url } = req.body;
+app.post(
+  "/check",
+  checkLimiter,
+  authenticateWorker,
+  async (req, res) => {
+    const { url } = req.body;
 
-  if (!url) {
-    return res.status(400).json({
-      error: "URL is required",
-    });
+    if (!url) {
+      return res.status(400).json({
+        error: "URL is required",
+      });
+    }
+
+    try {
+      const result = await checkWebsite(url);
+
+      return res.json({
+        region: REGION,
+        url,
+        ...result,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        error: error.message,
+      });
+    }
   }
-
-  try {
-    const validatedUrl = await validateUrl(url);
-
-    const result = await checkWebsite(validatedUrl.toString());
-
-    return res.json({
-      region: REGION,
-      url: validatedUrl.toString(),
-      ...result,
-    });
-  } catch (error) {
-    return res.status(400).json({
-      error: error.message,
-    });
-  }
-});
+);
 
 app.get("/health", (req, res) => {
   res.json({
@@ -75,7 +81,7 @@ app.get("/health", (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, "127.0.0.1", () => {
   console.log(`Worker running on port ${PORT}`);
   console.log(`Region: ${REGION}`);
 });
