@@ -36,7 +36,7 @@ const checkLimiter = rateLimit({
 function authenticateWorker(req, res, next) {
   const providedSecret = req.get("X-Worker-Key");
 
-  if (!providedSecret || providedSecret !== LONDON_WORKER_SECRET_KEY) {
+  if (!providedSecret || providedSecret !== WORKER_SECRET) {
     return res.status(401).json({
       error: "Unauthorized",
     });
