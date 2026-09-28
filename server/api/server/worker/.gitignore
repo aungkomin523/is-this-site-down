@@ -28,7 +28,7 @@ coverage/
 
 # Build / distribution
 
-# dist/
+dist/
 build/
 
 # OS files
