@@ -1,0 +1,78 @@
+name: CI/CD
+
+on: 
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout/@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Client - install, lint, build
+       working-directory: client
+       run: |
+         npm ci
+         npm run lint
+         npm run build
+
+      - name: API - install and syntax check
+        working-directory: server/api
+        run: |
+          npm ci
+          for f in app.js index.js controller/*.js routes/*.js services/*.js; do node --check "$f"; done
+
+      - users: actions/upload-artifact@v4
+        with:
+          name: client-dist
+          path: server/api/dist
+
+    deploy:
+      needs: build
+      if: github.event_name != 'pull_request'
+      runs-on: ubuntu-latest
+      concurrency: production
+      steps:
+        - uses: actions/download-artifact@v4
+          with: 
+            name: client-dist
+            path: dist
+
+        - name: Upload React Build to EC2
+          uses: appleboy/scp-action@v0.1.7
+          with:
+            host: ${{ secrets.EC2_HOST }}
+            username: ${{ secrets.EC2_USER }}
+            key: ${{ secrets.EC2_SSH_KEY }}
+            source: "dist/*"
+            target: "/home/ubuntu/is-this-site-down/server/api"
+
+        - name: Pull latest code and restart
+          uses: appleboy/ssh-action@v1
+          with:
+            host: ${{ secrets.EC2_HOST }}
+            username: ${{ secrets.EC2_USER }}
+            key: ${{ secrets.EC2_SSH_KEY }}
+            script: |
+              set -e
+              cd ~/is-this-site-down
+              git fetch origin main
+              git reset --hard origin/main
+              cd server/api
+              npm ci --omit=dev
+              pm2 reload upornot-api
+              pm2 save
+
+        - name: Health check
+          run: |
+            sleep 5
+            curl -fsS https://upornot.dev/api/health
+            
+       
+          
