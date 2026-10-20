@@ -1,5 +1,4 @@
 const {performance} = require('node:perf_hooks');
-require('dotenv').config()
 
 async function checkWebsite(url) {
     const start = performance.now();
