@@ -1,42 +1,40 @@
+const { checkWebsite } = require('./checker');
+
+// Future regions (New York, Singapore) go here as remote workers
+const REMOTE_WORKERS = [
+  { region: 'new-york', url: process.env.NEW_YORK_WORKER_URL, secret_key: process.env.NEW_YORK_WORKER_SECRET_KEY },
+  { region: 'singapore', url: process.env.SINGAPORE_WORKER_URL, secret_key: process.env.SINGAPORE_WORKER_SECRET_KEY },
+];
+
 class Service {
+  static async checkFromAllRegions(targetUrl) {
+    return Promise.all([
+      Service.checkLocally(targetUrl),
+      ...REMOTE_WORKERS.map(worker => Service.checkRemote(worker, targetUrl)),
+    ]);
+  }
 
-    static async checkFromAllRegions(targetUrl) {
-        const workers = [
-            {
-                region: "london",
-                url: process.env.LONDON_WORKER_URL,
-                secret_key: process.env.LONDON_WORKER_SECRET_KEY
-            },
-            // {
-            //     region: "new-york",
-            //     url: process.env.NEW_YORK_WORKER_URL,
-            //     secret_key: process.env.NEW_YORK_WORKER_SECRET_KEY
-            // },
-            // {
-            //     region: "singapore",
-            //     url: process.env.SINGAPORE_WORKER_URL,
-            //     secret_key: process.env.SINGAPORE_WORKER_SECRET_KEY
-            // },
-        ]
+  static async checkLocally(targetUrl) {
+    const result = await checkWebsite(targetUrl);
+    return { region: 'london', url: targetUrl, ...result };
+  }
 
-        const results = await Promise.all(
-            workers.map(async worker => {
-                const response = await fetch(worker.url, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-Worker-Key": worker.secret_key,
-                    },
-                    body: JSON.stringify({
-                        url: targetUrl,
-                    }),
-                })
-                return response.json();
-            }));
-
-        return results;
-
+  static async checkRemote(worker, targetUrl) {
+    try {
+      const response = await fetch(worker.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Worker-Key': worker.secret_key,
+        },
+        body: JSON.stringify({ url: targetUrl }),
+        signal: AbortSignal.timeout(15000),
+      });
+      return await response.json();
+    } catch {
+      return { region: worker.region, url: targetUrl, status: 'ERROR', error: 'Worker unreachable' };
     }
+  }
 }
 
 module.exports = Service;
