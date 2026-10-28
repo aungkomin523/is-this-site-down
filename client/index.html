@@ -1,12 +1,68 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>client</title>
+
+    <!-- Primary SEO -->
+    <title>Up or Not? – Check if a website is down right now</title>
+    <meta
+      name="description"
+      content="Is it down for everyone or just you? Up or Not checks any website's status and response time in seconds. Free, fast and no sign-up."
+    />
+    <link rel="canonical" href="https://upornot.dev/" />
+
+    <!-- Theme / browser UI -->
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#0f172a" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Open Graph (Facebook, LinkedIn, WhatsApp, Slack previews) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Up or Not?" />
+    <meta property="og:url" content="https://upornot.dev/" />
+    <meta property="og:title" content="Up or Not? – Check if a website is down right now" />
+    <meta
+      property="og:description"
+      content="Is it down for everyone or just you? Check any website's status and response time in seconds."
+    />
+    <meta property="og:image" content="https://upornot.dev/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Up or Not? – website status checker" />
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Up or Not? – Check if a website is down right now" />
+    <meta
+      name="twitter:description"
+      content="Is it down for everyone or just you? Check any website's status and response time in seconds."
+    />
+    <meta name="twitter:image" content="https://upornot.dev/og-image.png" />
+
+    <!-- Structured data: tells Google this is a free web app -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Up or Not?",
+        "url": "https://upornot.dev/",
+        "description": "Check if any website is up or down and see its response time.",
+        "applicationCategory": "UtilitiesApplication",
+        "operatingSystem": "Any",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "GBP" }
+      }
+    </script>
+
+    <!-- Sets dark/light before the page paints, so there's no flash of the wrong theme.
+         External file (not inline) so it works with helmet's Content-Security-Policy. -->
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      Up or Not? checks whether a website is up or down for everyone. Please enable JavaScript to use the checker.
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

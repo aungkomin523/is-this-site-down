@@ -1,29 +1,33 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Col, Container, Form, InputGroup, Button, Row, Spinner } from 'react-bootstrap'
+import { Link, useSearchParams } from 'react-router-dom'
 import StatusCard from '../components/StatusCard'
+import FaqSection from '../components/FaqSection'
 import api from '../services/api'
+import { normalizeUrl } from '../utils/url'
+
 function HomePage() {
-    const [url, setUrl] = useState('')
+    const [searchParams] = useSearchParams()
+    const queryUrl = searchParams.get('url') || ''
+
+    const [url, setUrl] = useState(queryUrl)
+    const [checkedUrl, setCheckedUrl] = useState('')
     const [results, setResults] = useState([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
 
-    const checkStatus = async () => {
-        if (!url.trim()) {
-            setError('Please enter a website URL.')
-            return
-        }
-
+    const checkStatus = useCallback(async (target) => {
         setLoading(true)
         setError('')
         setResults([])
 
         try {
             const response = await api.post('/check', {
-                url: url.trim(),
+                url: target,
             })
 
             setResults(response.data)
+            setCheckedUrl(target)
         } catch (error) {
             setError(
                 error.response?.data?.error ||
@@ -33,11 +37,23 @@ function HomePage() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [])
+
+    // Runs when opened with ?url=... (e.g. from the SEO page link)
+    useEffect(() => {
+        if (queryUrl) {
+            setUrl(queryUrl)
+            checkStatus(queryUrl)
+        }
+    }, [queryUrl, checkStatus])
 
     const handleSubmit = (event) => {
         event.preventDefault()
-        checkStatus()
+        if (!url.trim()) {
+            setError('Please enter a website URL.')
+            return
+        }
+        checkStatus(normalizeUrl(url))
     }
 
     return (
@@ -46,7 +62,6 @@ function HomePage() {
                 <Row className="justify-content-center text-center py-lg-5">
                     <Col lg={9} xl={8}>
                         <div className="hero-badge mb-4">
-                            <span className="pulse-dot" />
                             Real-time uptime monitoring
                         </div>
 
@@ -57,9 +72,12 @@ function HomePage() {
                             </span>
                         </h1>
 
-                        <Form onSubmit={handleSubmit} className="hero-form">
+                        <Form onSubmit={handleSubmit} className="hero-form" role="search">
+                            <Form.Label htmlFor="url-input" className="visually-hidden">
+                                Website URL
+                            </Form.Label>
                             <InputGroup className="search-group">
-                                <span className="input-icon">
+                                <span className="input-icon" aria-hidden="true">
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
                                         width="20"
@@ -72,7 +90,15 @@ function HomePage() {
                                 </span>
 
                                 <Form.Control
+                                    id="url-input"
                                     className="search-input"
+                                    type="text"
+                                    inputMode="url"
+                                    autoComplete="url"
+                                    autoCapitalize="none"
+                                    autoCorrect="off"
+                                    spellCheck={false}
+                                    enterKeyHint="go"
                                     placeholder="example.com"
                                     aria-label="Enter website URL"
                                     value={url}
@@ -105,6 +131,7 @@ function HomePage() {
                                                 fill="currentColor"
                                                 className="ms-2"
                                                 viewBox="0 0 16 16"
+                                                aria-hidden="true"
                                             >
                                                 <path
                                                     fillRule="evenodd"
@@ -118,7 +145,7 @@ function HomePage() {
                         </Form>
 
                         {error && (
-                            <div className="error-alert mt-3">
+                            <div className="error-alert mt-3" role="alert">
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
                                     width="18"
@@ -126,6 +153,7 @@ function HomePage() {
                                     fill="currentColor"
                                     viewBox="0 0 16 16"
                                     className="me-2"
+                                    aria-hidden="true"
                                 >
                                     <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
                                     <path d="M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0M7.1 4.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0z" />
@@ -137,13 +165,16 @@ function HomePage() {
                         {!loading && !error && results.length === 0 && (
                             <p className="hint-text mt-3">
                                 Enter a URL above to check its availability across multiple regions.
+                                <br />
+                                Want to improve your search ranking? Try the{' '}
+                                <Link to="/seo" className="seo-link">SEO checker</Link>.
                             </p>
                         )}
                     </Col>
                 </Row>
 
                 {results.length > 0 && (
-                    <Row className="justify-content-center mt-4 g-4">
+                    <Row className="justify-content-center mt-4 g-4" aria-live="polite">
                         {results.map((result) => (
                             <Col md={6} lg={4} key={result.region}>
                                 <StatusCard
@@ -159,172 +190,18 @@ function HomePage() {
                         ))}
                     </Row>
                 )}
+
+                {results.length > 0 && checkedUrl && (
+                    <p className="text-center mt-4 mb-0">
+                        <Link to={`/seo?url=${encodeURIComponent(checkedUrl)}`} className="seo-link">
+                            See the SEO score for this site →
+                        </Link>
+                    </p>
+                )}
+
+                <FaqSection />
             </Container>
 
-            <style>{`
-                .homepage-wrapper {
-                    min-height: 100vh;
-                    background: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 60%);
-                    color: #e2e8f0;
-                    position: relative;
-                    overflow: hidden;
-                }
-
-                .homepage-wrapper::before {
-                    content: '';
-                    position: absolute;
-                    top: -50%;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    width: 800px;
-                    height: 800px;
-                    background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
-                    pointer-events: none;
-                }
-
-                .hero-badge {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 8px;
-                    padding: 6px 16px;
-                    border-radius: 999px;
-                    background: rgba(99, 102, 241, 0.1);
-                    border: 1px solid rgba(99, 102, 241, 0.3);
-                    color: #a5b4fc;
-                    font-size: 0.85rem;
-                    font-weight: 500;
-                    letter-spacing: 0.02em;
-                }
-
-                .pulse-dot {
-                    width: 8px;
-                    height: 8px;
-                    border-radius: 50%;
-                    background: #22c55e;
-                    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
-                    animation: pulse 2s infinite;
-                }
-
-                @keyframes pulse {
-                    0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-                    70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
-                    100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
-                }
-
-                .hero-title {
-                    font-size: clamp(2rem, 5vw, 3.5rem);
-                    font-weight: 800;
-                    letter-spacing: -0.03em;
-                    line-height: 1.1;
-                    background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                    background-clip: text;
-                }
-
-                .hero-subtitle {
-                    font-size: clamp(1rem, 2.5vw, 1.35rem);
-                    font-weight: 400;
-                    color: #94a3b8;
-                    letter-spacing: -0.01em;
-                }
-
-                .search-group {
-                    background: rgba(30, 41, 59, 0.8);
-                    border: 1px solid rgba(148, 163, 184, 0.15);
-                    border-radius: 16px;
-                    padding: 6px;
-                    backdrop-filter: blur(12px);
-                    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.4);
-                    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-                    display: flex;
-                    align-items: center;
-                }
-
-                .search-group:focus-within {
-                    border-color: rgba(99, 102, 241, 0.6);
-                    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.4),
-                                0 0 0 4px rgba(99, 102, 241, 0.15);
-                }
-
-                .input-icon {
-                    display: flex;
-                    align-items: center;
-                    padding-left: 14px;
-                    color: #64748b;
-                }
-
-                .search-input {
-                    background: transparent !important;
-                    border: none !important;
-                    box-shadow: none !important;
-                    color: #e2e8f0 !important;
-                    font-size: 1rem;
-                    padding: 14px 12px;
-                }
-
-                .search-input::placeholder {
-                    color: #64748b;
-                }
-
-                .check-button {
-                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
-                    border: none !important;
-                    border-radius: 12px !important;
-                    padding: 12px 24px !important;
-                    font-weight: 600 !important;
-                    font-size: 0.95rem !important;
-                    letter-spacing: 0.01em;
-                    display: inline-flex;
-                    align-items: center;
-                    white-space: nowrap;
-                    transition: transform 0.15s ease, filter 0.15s ease !important;
-                }
-
-                .check-button:hover:not(:disabled) {
-                    transform: translateY(-1px);
-                    filter: brightness(1.1);
-                }
-
-                .check-button:active:not(:disabled) {
-                    transform: translateY(0);
-                }
-
-                .check-button:disabled {
-                    opacity: 0.7;
-                }
-
-                .error-alert {
-                    display: inline-flex;
-                    align-items: center;
-                    padding: 10px 18px;
-                    border-radius: 12px;
-                    background: rgba(239, 68, 68, 0.1);
-                    border: 1px solid rgba(239, 68, 68, 0.3);
-                    color: #fca5a5;
-                    font-size: 0.9rem;
-                }
-
-                .hint-text {
-                    color: #64748b;
-                    font-size: 0.9rem;
-                }
-
-                @media (max-width: 576px) {
-                    .check-button {
-                        padding: 12px 16px !important;
-                        font-size: 0.85rem !important;
-                    }
-
-                    .check-button svg {
-                        display: none;
-                    }
-
-                    .search-input {
-                        padding: 12px 8px;
-                    }
-                }
-            `}</style>
         </div>
     )
 }
