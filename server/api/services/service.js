@@ -1,4 +1,5 @@
 const { checkWebsite } = require('./checker');
+const { SeoScoreCheck } = require('./seo_analysis');
 
 // Future regions (New York, Singapore) go here as remote workers
 const REMOTE_WORKERS = [
@@ -10,7 +11,10 @@ class Service {
   static async checkFromAllRegions(targetUrl) {
     return Promise.all([
       Service.checkLocally(targetUrl),
-      ...REMOTE_WORKERS.map(worker => Service.checkRemote(worker, targetUrl)),
+      // skip regions whose URL isn't set in .env (so they don't show as "Down")
+      ...REMOTE_WORKERS
+        .filter(worker => worker.url)
+        .map(worker => Service.checkRemote(worker, targetUrl)),
     ]);
   }
 
@@ -34,6 +38,11 @@ class Service {
     } catch {
       return { region: worker.region, url: targetUrl, status: 'ERROR', error: 'Worker unreachable' };
     }
+  }
+
+  static async checkSeo(targetUrl) {
+    const result = await SeoScoreCheck(targetUrl);
+    return result;
   }
 }
 

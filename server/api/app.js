@@ -25,6 +25,13 @@ app.use('/api/check', rateLimit({
   legacyHeaders: false,
 }));
 
+app.use('/api/seo', rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+}));
+
 // Routes
 app.use('/api', routes);
 
